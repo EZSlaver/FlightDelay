@@ -1,4 +1,5 @@
-from typing import Iterable, List
+from enum import Enum
+from typing import Iterable, List, Union
 
 import numpy as np
 import scipy as sp
@@ -7,48 +8,85 @@ import tensorflow as tf
 import sklearn
 from noaa_sdk import noaa
 from datetime import datetime, timedelta
+import datetime as dt
 import requests
+import pickle
+
+LAGURADIA_LAT = 40.7769  # ° N,
+LAGURADIA_LON = -73.8740  # ° E
+
+
+class WeatherLabel(Enum):
+    ClearDay = 'clear-day'
+    ClearNight = 'clear-night'
+    Rain = 'rain'
+    Snow = 'snow'
+    Sleet = 'sleet'
+    Wind = 'wind'
+    Fog = 'fog'
+    Cloudy = 'cloudy'
+    PartlyCloudyDay = 'partly-cloudy-day'
+    PartlyCloudyNight = 'partly-cloudy-night'
+    # Unused but reserved
+    Hail = 'hail'
+    Thunderstorm = 'thunderstorm'
+    Tornado = 'tornado'
+
+
+class WeatherReportType(Enum):
+    Monthly = 'monthly'
+    Weekly = 'weekly'
+    Daily = 'daily'
+    Hourly = 'hourly'
+    Minutely = 'minutely'
 
 
 class WeatherData:
-    API_OUT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%z'
+    # API_OUT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%z'
 
-    def __init__(self, data_dict):
-        self.timestep = datetime.strptime(data_dict['format'], self.API_OUT_DATETIME_FORMAT)
+    def __init__(self, time_step, weather_label, ):
+        self.timestep = dt.datetime.fromisoformat(data_dict['format'])
         self.temperature_C = data_dict['temperature']['value']
         self.dewpoint = data_dict['dewpoint']['value']
         self.wind_angle = data_dict['dewpoint']['value']
 
 
 class WeatherAPIWrapper:
-    API_IN_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%z'
-    # API_IN_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
-    NEW_YORK_STATION_ID = 'KNYC'
+    DARK_CITY_KEY = '0f88ed49ffa188f993bf53b490c5ff5d'
+    DARK_CITY_URL = 'https://api.darksky.net/forecast/{key}/{lat},{lon},{time}?units=si&extend=hourly'
 
-    def __init__(self):
-        self._n = noaa.NOAA()
+    @staticmethod
+    def date_time_to_format(date: datetime):
+        return (date - datetime(1970, 1, 1)).total_seconds()
 
-    def get_observations_by_station(self, station_id, start_time: datetime = None, end_time: datetime = None,
-                                    limit=None) -> List[WeatherData]:
+    @staticmethod
+    def date_time_from_format(form: str):
+        return datetime.utcfromtimestamp(int(form))
 
-        if start_time is None:
-            start_time = datetime.now()
+    #
+    # def __init__(self):
+    #     self._n = noaa.NOAA()
 
-        uri = 'https://api.weather.gov/stations/{}/observations?start={}' \
-            .format(station_id, start_time.strftime(self.API_IN_DATETIME_FORMAT))
+    def get_observations_by_lat_lon(self, lat, lon, time: Union[None, datetime, Iterable[datetime]] = None):
 
-        if end_time is not None:
-            uri += '&end=' + end_time.strftime(self.API_IN_DATETIME_FORMAT)
+        if time is None:
+            time = [datetime.now()]
 
-        if limit is not None:
-            uri += '&limit=' + str(limit)
+        if isinstance(time, datetime):
+            time = [time]
 
-        response = requests.get(uri, {
-            'accept': 'application/geo+json',
-            'User-Agent': "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0"
-        })
+        base_uri = self.DARK_CITY_URL.format(key=self.DARK_CITY_KEY, lat=lat, lon=lon)
 
-        json = response.json()
+        for t in time:
+            uri = base_uri.format(time=t)
+
+            response = requests.get(uri, {
+                'User-Agent': "This is me: erezinman.ai@gmail.com"
+            })
+            return response.json()
+
+        with open('pickle.pckl', 'w') as f:
+            pickle.dump([json])
         return []
         #
         # for obs in self._n.get_observations('11371', 'US',
@@ -59,4 +97,7 @@ class WeatherAPIWrapper:
 
 
 if __name__ == "__main__":
-    WeatherAPIWrapper().get_observation_at_time(datetime.now() - timedelta(days=365))
+    WeatherAPIWrapper().get_observations_by_station(
+        WeatherAPIWrapper.NEW_YORK_STATION_ID,
+        start_time=datetime.now() - timedelta(days=365),
+        limit=3)
