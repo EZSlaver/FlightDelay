@@ -1,9 +1,11 @@
 import pickle
+import os
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Iterable, Union
 
 import requests
+from requests import RequestException
 
 LAGURADIA_LAT = 40.7769  # ° N,
 LAGURADIA_LON = -73.8740  # ° E
@@ -81,6 +83,33 @@ class WeatherReport:
         self.apparent_temperature_max: Union[None, float] = None
         self.apparent_temperature_max_time: Union[None, datetime] = None
 
+    def __repr__(self):
+        first = True
+        ret = "("
+        for attr in self.__dict__.keys():
+            if "_" in attr or self.__dict__[attr] is None:
+                continue
+            if not first:
+                ret += ", "
+            first = False
+            ret += "{}: {}".format(attr, self.__dict__[attr])
+
+        return ret + ")"
+
+    def extend_with(self, another):
+        new = WeatherReport(self.report_type, self.weather_label)
+
+        for attr in self.__dict__.keys():
+            if "_" in attr:
+                continue
+
+            if self.__dict__[attr] is not None:
+                new.__dict__[attr] = self.__dict__[attr]
+            else:
+                new.__dict__[attr] = another.__dict__[attr]
+
+        return new
+
 
 class WeatherDarkSkyAPIWrapper:
     DARK_SKY_KEY = '0f88ed49ffa188f993bf53b490c5ff5d'
@@ -128,6 +157,8 @@ class WeatherDarkSkyAPIWrapper:
             data.precipitation_probability = float(report['precipProbability'])
         if 'precipType' in report:
             data.precipitation_type = WeatherLabel(report['precipType'])
+        if 'temperature' in report:
+            data.temperature = float(report['temperature'])
         if 'temperatureHigh' in report:
             data.temperature_high = float(report['temperatureHigh'])
         if 'temperatureHighTime' in report:
@@ -219,6 +250,9 @@ class WeatherDarkSkyAPIWrapper:
                 if type.value in response:
                     self._get_responses_by_type_from_json_dict(type, response[type.value], obs)
 
+            if len(obs) == 0:
+                raise RequestException('Reached daily maximum.')
+
             observations.append(obs)
 
         return observations
@@ -226,8 +260,8 @@ class WeatherDarkSkyAPIWrapper:
 
 if __name__ == "__main__":
 
-    start = datetime(year=2018, month=5, day=1)
-    end = datetime(year=2019, month=5, day=31)
+    start = datetime(year=2018, month=5, day=1) - timedelta(days=1)
+    end = datetime(year=2019, month=5, day=31) + timedelta(days=1)
     times = []
     while start.timestamp() <= end.timestamp():
         times.append(start)
@@ -236,7 +270,7 @@ if __name__ == "__main__":
     ret = WeatherDarkSkyAPIWrapper() \
         .get_observations_by_lat_lon(LAGURADIA_LAT, LAGURADIA_LON, times)
 
-    with open('May2018-May2019.pckl', 'wb') as f:
+    with open(os.path.join('Data', 'WeatherData_May2018-May2019.bin'), 'wb') as f:
         pickle.dump(ret, f)
 
     pass
