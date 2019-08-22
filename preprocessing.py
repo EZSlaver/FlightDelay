@@ -40,6 +40,14 @@ def count_value_pairs_between_columns(df, col1, col2, cond_on_1=None, cond_on_2=
 
 
 def add_column_by_f_on_columns(df, new_col_name, f, *col_names):
+    '''
+     Add column by applying f on the columns given by their names
+    :param df:
+    :param new_col_name:
+    :param f:
+    :param col_names:
+    :return:
+    '''
     cols = []
     for name in col_names:
         cols.append(df[name])
