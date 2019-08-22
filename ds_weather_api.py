@@ -54,6 +54,8 @@ class WeatherReport:
         self.precipitation_intensity_max_time: Union[None, datetime] = None
         self.precipitation_probability: Union[None, float] = None
         self.precipitation_type: Union[None, WeatherLabel] = None
+        self.temperature: Union[None, float] = None
+        self.apparent_temperature: Union[None, float] = None
         self.temperature_high: Union[None, float] = None
         self.temperature_high_time: Union[None, datetime] = None
         self.temperature_low: Union[None, float] = None
@@ -87,7 +89,7 @@ class WeatherReport:
         first = True
         ret = "("
         for attr in self.__dict__.keys():
-            if "_" in attr or self.__dict__[attr] is None:
+            if attr.startswith("_") or self.__dict__[attr] is None:
                 continue
             if not first:
                 ret += ", "
@@ -100,7 +102,7 @@ class WeatherReport:
         new = WeatherReport(self.report_type, self.weather_label)
 
         for attr in self.__dict__.keys():
-            if "_" in attr:
+            if attr.startswith("_"):
                 continue
 
             if self.__dict__[attr] is not None:
@@ -167,6 +169,8 @@ class WeatherDarkSkyAPIWrapper:
             data.temperature_low = float(report['temperatureLow'])
         if 'temperatureLowTime' in report:
             data.temperature_low_time = self.date_time_from_format(report['temperatureLowTime'])
+        if 'apparentTemperature' in report:
+            data.apparent_temperature = float(report['apparentTemperature'])
         if 'apparentTemperatureHigh' in report:
             data.apparent_temperature_high = float(report['apparentTemperatureHigh'])
         if 'apparentTemperatureHighTime' in report:
@@ -236,8 +240,9 @@ class WeatherDarkSkyAPIWrapper:
         if isinstance(time, datetime):
             time = [time]
 
+        tot = len(time)
         observations = []
-        for t in time:
+        for i, t in enumerate(time):
             uri = self.DARK_SKY_URL.format(key=self._ds_key, lat=lat, lon=lon, time=self.date_time_to_format(t))
 
             response = requests.get(uri, {
@@ -254,6 +259,7 @@ class WeatherDarkSkyAPIWrapper:
                 raise RequestException('Reached daily maximum.')
 
             observations.append(obs)
+            print('\rFinished %03d out of %03d (%5.2f%%).' % (i, tot, (i * 100 / tot)), end='')
 
         return observations
 
