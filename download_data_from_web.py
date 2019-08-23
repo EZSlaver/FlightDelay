@@ -24,9 +24,9 @@ if __name__ == "__main__":
 
     raw_data_folder = os.path.join('Data', 'All')
 
-    start_month, start_year = 5, 2014
+    start_month, start_year = 5, 2018
     # Non Inclusive
-    end_month, end_year = 5, 2018
+    end_month, end_year = 6, 2019
 
     downloaded = []
     while start_month != end_month or start_year != end_year:

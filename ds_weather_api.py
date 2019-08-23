@@ -114,7 +114,11 @@ class WeatherReport:
 
 
 class WeatherDarkSkyAPIWrapper:
-    DARK_SKY_KEY = '0f88ed49ffa188f993bf53b490c5ff5d'
+    DARK_SKY_KEYS = ['0f88ed49ffa188f993bf53b490c5ff5d',
+                     'c1b2cc4a6d9004dfff2d150cc343f3b7',
+                     '2e42518033f5d4d7e12f8c696ed20eee',
+                     '98d0865199dc5f7c861b0a126b07d1fe',
+                     'a44ef0240ab97b9a3af6f932740bbcec']
     DARK_SKY_URL = 'https://api.darksky.net/forecast/{key}/{lat},{lon},{time}?units=si&extend=hourly'
 
     @staticmethod
@@ -125,8 +129,8 @@ class WeatherDarkSkyAPIWrapper:
     def date_time_from_format(form: str):
         return datetime.utcfromtimestamp(int(form))
 
-    def __init__(self, ds_key=None):
-        self._ds_key = ds_key or self.DARK_SKY_KEY
+    def __init__(self, ds_keys=None):
+        self._ds_keys = ds_keys or self.DARK_SKY_KEYS
 
     def _get_weather_data(self, report_type: WeatherReportType, report: dict) -> WeatherReport:
 
@@ -240,23 +244,31 @@ class WeatherDarkSkyAPIWrapper:
         if isinstance(time, datetime):
             time = [time]
 
+        usable_keys_list = self._ds_keys.copy()
+
         tot = len(time)
         observations = []
         for i, t in enumerate(time):
-            uri = self.DARK_SKY_URL.format(key=self._ds_key, lat=lat, lon=lon, time=self.date_time_to_format(t))
-
-            response = requests.get(uri, {
-                'User-Agent': "This is me: erezinman.ai@gmail.com"
-            }).json()
-
             obs = {}
+            while len(obs) == 0:
 
-            for type in WeatherReportType:
-                if type.value in response:
-                    self._get_responses_by_type_from_json_dict(type, response[type.value], obs)
+                if len(usable_keys_list) == 0:
+                    raise RequestException('Reached daily maximum.')
 
-            if len(obs) == 0:
-                raise RequestException('Reached daily maximum.')
+                uri = self.DARK_SKY_URL.format(key=usable_keys_list[-1], lat=lat, lon=lon, time=self.date_time_to_format(t))
+
+                response = requests.get(uri, {
+                    'User-Agent': "This is me: erezinman.ai@gmail.com"
+                })
+
+                calls_today = int(response.headers['X-Forecast-API-Calls'])
+                if calls_today >= 1000:
+                    usable_keys_list.pop()
+                json = response.json()
+
+                for type in WeatherReportType:
+                    if type.value in json:
+                        self._get_responses_by_type_from_json_dict(type, json[type.value], obs)
 
             observations.append(obs)
             print('\rFinished %03d out of %03d (%5.2f%%).' % (i, tot, (i * 100 / tot)), end='')
@@ -266,7 +278,7 @@ class WeatherDarkSkyAPIWrapper:
 
 if __name__ == "__main__":
 
-    start = datetime(year=2018, month=5, day=1) - timedelta(days=1)
+    start = datetime(year=2014, month=5, day=1) - timedelta(days=1)
     end = datetime(year=2019, month=5, day=31) + timedelta(days=1)
     times = []
     while start.timestamp() <= end.timestamp():
