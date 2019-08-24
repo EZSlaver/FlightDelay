@@ -113,9 +113,52 @@ class WeatherReport:
         return new
 
 
-class WeatherDarkSkyAPIWrapper:
-    DARK_SKY_KEY = '0f88ed49ffa188f993bf53b490c5ff5d'
+class BaseAPIWrapper:
+    def __init__(self, api_keys):
+        self._api_keys = api_keys
+
+    def should_change_key(self, response: requests.Response):
+        return response.status_code == 400
+
+    def make_api_calls(self, urls, callback):
+
+        usable_keys_list = self._api_keys.copy()
+
+        tot = len(urls)
+        observations = []
+
+        for i, url in enumerate(urls):
+            rerun = True
+            while rerun:
+                if len(usable_keys_list) == 0:
+                    raise RequestException('Reached daily maximum.')
+
+                response = requests.get(url.format(key=usable_keys_list[-1]), {
+                    'User-Agent': "This is me: erezinman.ai@gmail.com"
+                })
+
+                json = response.json()
+
+                rerun = self.should_change_key(response) or callback(json) is False
+
+                if rerun:
+                    usable_keys_list.pop()
+
+            print('\rFinished %03d out of %03d (%5.2f%%).' % (i, tot, (i * 100 / tot)), end='')
+
+        return observations
+
+
+class WeatherDarkSkyAPIWrapper(BaseAPIWrapper):
     DARK_SKY_URL = 'https://api.darksky.net/forecast/{key}/{lat},{lon},{time}?units=si&extend=hourly'
+    DARK_SKY_KEYS = ['0f88ed49ffa188f993bf53b490c5ff5d',
+                     'c1b2cc4a6d9004dfff2d150cc343f3b7',
+                     '2e42518033f5d4d7e12f8c696ed20eee',
+                     '98d0865199dc5f7c861b0a126b07d1fe',
+                     'a44ef0240ab97b9a3af6f932740bbcec']
+
+    def __init__(self, custom_keys=None):
+        super().__init__(custom_keys or self.DARK_SKY_KEYS)
 
     @staticmethod
     def date_time_to_format(date: datetime):
@@ -124,9 +167,6 @@ class WeatherDarkSkyAPIWrapper:
     @staticmethod
     def date_time_from_format(form: str):
         return datetime.utcfromtimestamp(int(form))
-
-    def __init__(self, ds_key=None):
-        self._ds_key = ds_key or self.DARK_SKY_KEY
 
     def _get_weather_data(self, report_type: WeatherReportType, report: dict) -> WeatherReport:
 
@@ -240,33 +280,35 @@ class WeatherDarkSkyAPIWrapper:
         if isinstance(time, datetime):
             time = [time]
 
-        tot = len(time)
         observations = []
+        urls = []
         for i, t in enumerate(time):
-            uri = self.DARK_SKY_URL.format(key=self._ds_key, lat=lat, lon=lon, time=self.date_time_to_format(t))
+            urls.append(
+                self.DARK_SKY_URL.format(key='{key}', lat=lat, lon=lon, time=self.date_time_to_format(t))
+            )
 
-            response = requests.get(uri, {
-                'User-Agent': "This is me: erezinman.ai@gmail.com"
-            }).json()
-
+        def callback(json):
             obs = {}
-
             for type in WeatherReportType:
-                if type.value in response:
-                    self._get_responses_by_type_from_json_dict(type, response[type.value], obs)
-
+                if type.value in json:
+                    self._get_responses_by_type_from_json_dict(type, json[type.value], obs)
             if len(obs) == 0:
-                raise RequestException('Reached daily maximum.')
-
+                return False
             observations.append(obs)
-            print('\rFinished %03d out of %03d (%5.2f%%).' % (i, tot, (i * 100 / tot)), end='')
+            return True
+
+        self.make_api_calls(urls, callback)
 
         return observations
+
+    def should_change_key(self, response: requests.Response):
+        return super(WeatherDarkSkyAPIWrapper, self).should_change_key(response) \
+               or int(response.headers['X-Forecast-API-Calls']) >= 1000
 
 
 if __name__ == "__main__":
 
-    start = datetime(year=2018, month=5, day=1) - timedelta(days=1)
+    start = datetime(year=2014, month=5, day=1) - timedelta(days=1)
     end = datetime(year=2019, month=5, day=31) + timedelta(days=1)
     times = []
     while start.timestamp() <= end.timestamp():
