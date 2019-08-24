@@ -24,8 +24,8 @@ class WeatherFeatureExtractor:
             weather_data = CustomUnpickler(f).load()
 
         # Change Format
-        cls.date_to_hour = {}
-        date_to_hours = WeatherFeatureExtractor.date_to_hours
+        cls.date_to_hours = {}
+        date_to_hours = cls.date_to_hours
         for data in weather_data:
             hourly_data = data[WeatherReportType.Hourly]
 
