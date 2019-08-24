@@ -13,8 +13,15 @@ class WeatherFeatureExtractor:
 
     @classmethod
     def load_data(cls):
+
+        class CustomUnpickler(pickle.Unpickler):
+            def find_class(self, module, name):
+                if module == "__main__":
+                    module = 'ds_weather_api'
+                return super().find_class(module, name)
+
         with open(cls.DATA_PATH, 'rb') as f:
-            weather_data = pickle.load(f)
+            weather_data = CustomUnpickler(f).load()
 
         # Change Format
         cls.date_to_hour = {}

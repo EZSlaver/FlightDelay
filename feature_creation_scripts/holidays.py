@@ -1,6 +1,5 @@
 from calanderific_holiday_api import *
-import pickle
-from datetime import datetime, timedelta, date, time
+
 
 class HolidayFeatureExtractor:
     holiday_vicinity_dict: dict = None
@@ -12,8 +11,15 @@ class HolidayFeatureExtractor:
 
     @classmethod
     def load_data(cls):
+
+        class CustomUnpickler(pickle.Unpickler):
+            def find_class(self, module, name):
+                if module == "__main__":
+                    module = 'calanderific_holiday_api'
+                return super().find_class(module, name)
+
         with open(cls.DATA_PATH, 'rb') as f:
-            holiday_data = pickle.load(f)
+            holiday_data = CustomUnpickler(f).load()
 
         min_date = min(holiday_data.keys)
         max_date = max(holiday_data.keys)
