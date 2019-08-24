@@ -62,7 +62,7 @@ class HolidayFeatureExtractor:
     @classmethod
     def get_feature_dict(cls, date_):
 
-        date_ = date.fromisoformat(date_)
+        date_ = datetime.strptime(date_, "%Y-%m-%d").date()
 
         ret = {}
         for ht in cls.HOLIDAY_TYPES:

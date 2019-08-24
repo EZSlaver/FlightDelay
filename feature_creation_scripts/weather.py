@@ -64,7 +64,7 @@ class WeatherFeatureExtractor:
 
         date_to_hours = cls.date_to_hours
 
-        dt = date.fromisoformat(date_)
+        dt = datetime.strptime(date_, "%Y-%m-%d").date()
         hour = int(np.round(time / 100.))
 
         ret = {}
