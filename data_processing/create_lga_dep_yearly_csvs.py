@@ -61,11 +61,11 @@ def create_load_df(df, mode):
 
 def create_and_save_load_db_and_return_dep_df(df, file_name):
     df_dep = df[df['Origin'] == 'LGA']
-    df_arr = df[df['Dest'] == 'LGA']
-    dep_load_df = create_load_df(df_dep, 'Dep')
-    dep_load_df.to_csv(load_target_path + 'lga_load_dep_' + file_name)
-    arr_load_df = create_load_df(df_arr, 'Arr')
-    arr_load_df.to_csv(load_target_path + 'lga_load_arr_' + file_name)
+    # df_arr = df[df['Dest'] == 'LGA']
+    # dep_load_df = create_load_df(df_dep, 'Dep')
+    # dep_load_df.to_csv(load_target_path + 'lga_load_dep_' + file_name)
+    # arr_load_df = create_load_df(df_arr, 'Arr')
+    # arr_load_df.to_csv(load_target_path + 'lga_load_arr_' + file_name)
     return df_dep
 
 
@@ -79,7 +79,8 @@ for file_name in file_name_list:
     df = df[(df['Cancelled'] == 0) & (df['Diverted'] == 0)]
     df = df.drop(columns=['Cancelled', 'Diverted'], axis=1)
     df['DayOfYear'] = df["Month"].map('{:02}'.format) + '-' + df["DayofMonth"].map('{:02}'.format)
-    df = df.sort_values(by=['FlightDate', 'CRSDepTime'])
+    df['DateTime'] = df['Year'].map(str) + '-' + df['DayOfYear'].map(str) + '-' + df['CRSDepTime'].map(str)
+    df = df.sort_values(by=['DateTime'])
     if year == year_prev:
         with open(target_path + 'lga_dep_' + year + '.csv', mode='a') as f:
             df.to_csv(f, header=False)
