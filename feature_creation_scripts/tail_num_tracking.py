@@ -6,13 +6,13 @@ import numpy as np
 global CACHE
 CACHE = {}
 
-COLS = ['FlightDate', 'CRSDepTime', 'Tail_Number', 'ArrDelay', 'DepDelay']
+COLS = ['FlightDate', 'CRSDepTime', 'Tail_Number', 'ArrDelay', 'DepDelay', 'AirTime', 'DistanceGroup', 'Distance', 'Origin', 'Dest']
 
 def get_df(strng, source_path):
     global CACHE
     if strng not in CACHE:
         df = pd.read_csv(source_path + strng + '.csv', usecols=COLS)
-        df['DateTime'] = df['FlightDate'] + '-' + df['CRSDepTime'].map(str)
+        df['DateTime'] = df['FlightDate'] + '-' + df['CRSDepTime'].map('{:04}'.format)
         df = df.sort_values(by=['DateTime'], ascending=False)
         CACHE[strng] = df
     if len(CACHE) > 3:
@@ -24,12 +24,10 @@ def get_df(strng, source_path):
 def get_n_prior_flights(n, tail_num, year, month, day, time, source_path, last=False):
     month_str = '{:02}'.format(month)
     day_str = '{:02}'.format(day)
-    date_time = '-'.join(['20' + str(year), month_str, day_str, str(time)])
+    date_time = '-'.join(['20' + str(year), month_str, day_str, '{:04}'.format(time)])
     df = get_df(str(year) + '_' + month_str, source_path)
     flights = df[df['Tail_Number'] == tail_num]
-    # flights = flights[(flights['FlightDate'] + '-' +  flights['CRSDepTime'].map(str) ) <= date_time]
-    flights = flights[flights['DateTime'] <= date_time]
-    # flights = flights.sort_values(by=['DateTime'], ascending=False)
+    flights = flights[flights['DateTime'] < date_time]
     flights = flights.iloc[: n]
     if flights.shape[0] < n and not last:
         year = year - 1 if month == 1 else year

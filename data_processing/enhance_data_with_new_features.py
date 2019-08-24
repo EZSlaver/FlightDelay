@@ -26,26 +26,26 @@ ldfc = LoadDFClass(load_source_path, load_prefix)
 
 
 
-def special_print(index):
+def special_print(index, total):
     sys.stdout.write('\r')
     sys.stdout.flush()
-    sys.stdout.write('Tracking index {}'.format(index))
+    sys.stdout.write('Row {}/{}'.format(index, total - 1))
     sys.stdout.flush()
 
 
 def add_new_columns(dep_df):
-    tracking_cols = list(it.chain.from_iterable([['ArrDelay{}'.format(i), 'DepDelay{}'.format(i + 1)] for i in range(n)]))
+    tracking_cols1 = list(it.chain.from_iterable([['ArrDelay{}'.format(i), 'DepDelay{}'.format(i + 1)] for i in range(n)]))
+    tracking_cols2 = ['IncomingAirTime', 'IncomingDistance', 'IncomingDistanceGroup']
     load_cols = ['ArrTimeBlkLoad', 'ArrDailyLoad', 'DepTimeBlkLoad', 'DepDailyLoad', 'TotalTimeBlkLoad', 'TotalDailyLoad']
     weather_cols = []
     holiday_cols = []
-    new_cols = tracking_cols + load_cols + weather_cols + holiday_cols
+    new_cols = tracking_cols1 + tracking_cols2 + load_cols + weather_cols + holiday_cols
     for col in new_cols:
         dep_df[col] = np.nan
     return dep_df
 
 
 def get_plane_tracking_features(dep_df, n, index):
-    special_print(index)
     tail_num = dep_df.at[index, 'Tail_Number']
     month = dep_df.at[index, 'Month']
     year = dep_df.at[index, 'Year'] % 2000
@@ -57,6 +57,10 @@ def get_plane_tracking_features(dep_df, n, index):
         rtn_dict['ArrDelay{}'.format(j)] = flights.at[i, 'ArrDelay']
         if j < n:
             rtn_dict['DepDelay{}'.format(j + 1)] = flights.at[i, 'DepDelay']
+        if j == 0:
+            rtn_dict['IncomingAirTime'] = flights.at[i, 'AirTime']
+            rtn_dict['IncomingDistance'] = flights.at[i, 'Distance']
+            rtn_dict['IncomingDistanceGroup'] = flights.at[i, 'DistanceGroup']
     return rtn_dict
 
 
@@ -64,11 +68,15 @@ def get_load_features(dep_df, index):
     month = dep_df.at[index, 'Month']
     year = dep_df.at[index, 'Year'] % 2000
     day = dep_df.at[index, 'DayofMonth']
+    time_blk = dep_df.at[index, 'DepTimeBlk']
     rtn_dict = {}
     for mode in ['Dep', 'Arr']:
         load_df = ldfc.get_load_df(year, month, mode.lower())
-        time_blk = dep_df.at[index, mode + 'TimeBlk']
-        rtn_dict.update({mode + 'TimeBlkLoad': load_df.at[day - 1, time_blk],
+        try:
+          time_blk_load = load_df.at[day - 1, time_blk]
+        except KeyError as e:
+            time_blk_load = 0
+        rtn_dict.update({mode + 'TimeBlkLoad': time_blk_load,
                          mode + 'DailyLoad' : load_df.at[day - 1, 'daily']})
     rtn_dict.update({'TotalTimeBlkLoad': rtn_dict['ArrTimeBlkLoad'] + rtn_dict['DepTimeBlkLoad'],
                      'TotalDailyLoad' : rtn_dict['ArrDailyLoad'] + rtn_dict['DepDailyLoad']})
@@ -93,10 +101,13 @@ if __name__ == '__main__':
         dep_df = pd.read_csv(source_path + file_name)
         dep_df = add_new_columns(dep_df)
         for index in range(dep_df.shape[0]):
+            special_print(index, dep_df.shape[0])
             new_features_dict = {}
             new_features_dict.update(get_plane_tracking_features(dep_df, n, index))
             new_features_dict.update(get_load_features(dep_df, index))
             new_features_dict.update(get_weather_features(dep_df, index))
             new_features_dict.update(get_holiday_features(dep_df, index))
+            for feature, value in new_features_dict.items():
+                dep_df.at[index, feature] = value
         dep_df.to_csv(output_path + 'enhanced_' + file_name)
 
