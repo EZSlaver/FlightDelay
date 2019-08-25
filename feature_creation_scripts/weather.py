@@ -6,10 +6,10 @@ from ds_weather_api import *
 
 
 class WeatherFeatureExtractor:
-    date_to_hours: dict = None
-    data_loaded: bool = False
+    date_to_hours = None
+    data_loaded = False
 
-    DATA_PATH = '../Data/WeatherData_May2018-May2019.bin'
+    DATA_PATH = '../Data/WeatherData_May2014-May2019.bin'
 
     @classmethod
     def load_data(cls):
@@ -37,8 +37,8 @@ class WeatherFeatureExtractor:
             for hour in hours:
                 dt = hour.date()
                 if dt not in date_to_hours:
-                    date_to_hours[dt] = {}
-                date_to_hours[dt][hour.hour] = hourly_data[hour].extend_with(daily)
+                    date_to_hours[dt.isoformat()] = {}
+                date_to_hours[dt.isoformat()][hour.hour] = hourly_data[hour].extend_with(daily)
 
         # Imputate data from previous hour
         prev_good_hour_value = None
@@ -64,20 +64,22 @@ class WeatherFeatureExtractor:
 
         date_to_hours = cls.date_to_hours
 
-        dt = datetime.strptime(date_, "%Y-%m-%d").date()
         hour = int(np.round(time / 100.))
 
-        ret = {}
-        for attr_name in ['weather_label', 'precipitation_intensity', 'precipitation_probability', 'visibility',
-                          'cloud_cover', 'humidity', 'wind_bearing', 'wind_speed', 'uv_index', 'temperature',
-                          'moon_phase', 'sunrise_time', 'sunset_time', 'dew_point', 'pressure']:
+        attrs = ['weather_label', 'precipitation_intensity', 'precipitation_probability', 'visibility',
+                 'cloud_cover', 'humidity', 'wind_bearing', 'wind_speed', 'uv_index', 'temperature',
+                 'moon_phase', 'sunrise_time', 'sunset_time', 'dew_point', 'pressure']
+        #
+        # if date_ not in date_to_hours or hour not in date_to_hours[date_]:
+        #     ret[attr_name] = np.nan
+        # else:
+        #     ret[attr_name] = date_to_hours[date_][hour].__dict__[attr_name]
 
-            if dt not in date_to_hours or hour not in date_to_hours[dt]:
-                ret[attr_name] = np.nan
-            else:
-                ret[attr_name] = date_to_hours[dt][hour].__getattribute__(attr_name)
+        if date_ not in date_to_hours or hour not in date_to_hours[date_]:
+            return {at_name: np.nan for at_name in attrs}
 
-        return ret
+        hour_data = date_to_hours[date_][hour]
+        return {at_name: hour_data.__dict__[at_name] for at_name in attrs}
 
 
 def get_weather_features_dict(date, time):
