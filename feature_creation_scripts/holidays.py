@@ -32,6 +32,9 @@ class HolidayFeatureExtractor:
             cls.holiday_vicinity_dict[ht] = \
                 cls.get_holiday_vicinity_status_per_date(holiday_data, ht, min_date, max_date)
 
+        cls.data_loaded = True
+
+
     @classmethod
     def get_holiday_vicinity_status_per_date(cls, holiday_data, holiday_type, start_date: date,
                                              end_date, vicinity=3):
@@ -42,9 +45,9 @@ class HolidayFeatureExtractor:
         while date <= end_date:
             date_str = date.isoformat()
             has_relevant_holiday = False
-            if date_str in holiday_data:
-                for h_name in holiday_data[date_str]:
-                    for t in holiday_data[date_str][h_name].types:
+            if date in holiday_data:
+                for h_name in holiday_data[date]:
+                    for t in holiday_data[date][h_name].types:
                         if t == holiday_type:
                             has_relevant_holiday = True
                             break

@@ -56,6 +56,8 @@ class WeatherFeatureExtractor:
                     else:
                         prev_good_hour_value.temperature = prev_good_temperature
 
+        cls.data_loaded = True
+
     @classmethod
     def get_feature_dict(cls, date_, time):
 
